@@ -676,6 +676,80 @@ app.post('/api/agencies/:agencyId/chat_logs', async (req, res) => {
   }
 });
 
+
+// Helper function to perform seed data insertion
+async function performSeed() {
+  // ── Users ──
+  const users = [
+    { name: 'Jordan Reyes',   email: 'jordan@agencyops.io',  role: 'ADMIN'   },
+    { name: 'Mia Chen',       email: 'mia@agencyops.io',     role: 'CREATOR' },
+    { name: 'DeShawn Morris', email: 'deshawn@agencyops.io', role: 'CREATOR' },
+    { name: 'Priya Kapoor',   email: 'priya@agencyops.io',   role: 'CREATOR' },
+  ];
+  const userIds = {};
+  for (const u of users) {
+    const { lastID, rows } = await db.query(
+      'INSERT INTO users (name, email, role) VALUES ($1, $2, $3)', [u.name, u.email, u.role]);
+    userIds[u.email] = lastID || (rows[0] && rows[0].id);
+  }
+
+  // ── Agencies ──
+  const agencyNames = ['Elite Talent Group','Coastal Restaurant Group','NorthStar Sports Agency','Apex Modeling LLC','Bloom PR Agency'];
+  const agencyIds = {};
+  for (const name of agencyNames) {
+    const { lastID, rows } = await db.query('INSERT INTO agencies (name) VALUES ($1)', [name]);
+    agencyIds[name] = lastID || (rows[0] && rows[0].id);
+  }
+
+  // ── Service Requests ──
+  const srs = [
+    { agency:'Elite Talent Group',       name:'Weekly Profile Events Sync',    status:'ASSIGNED',   creator:'mia@agencyops.io',     day:'FRIDAY',    time:'17:00',
+      profiles:[{n:'Marcus Bell',u:'https://cms.internal/profile/1001'},{n:'Sofia Alvarez',u:'https://cms.internal/profile/1002'},{n:'Tyler Brooks',u:'https://cms.internal/profile/1003'}],
+      rules:[{t:'INTERVAL_SCHEDULED',src:'https://elitetalentgroup.com/events',cron:'0 8 * * 5',instr:'## Weekly Profile Events Update\n- [ ] Open source URL and scan for new bookings\n- [ ] Navigate to each profile CMS link below\n- [ ] Update the upcoming events section with new dates\n- [ ] Upload any new headshot images if provided\n- [ ] Save changes and confirm publish timestamp\n- [ ] Reply to agency contact confirming completion'}]},
+    { agency:'Coastal Restaurant Group', name:'Weekly Menu & Specials Sync',   status:'ASSIGNED',   creator:'deshawn@agencyops.io', day:'MONDAY',   time:'09:00',
+      profiles:[{n:'Harbor Bites — Downtown',u:'https://cms.internal/venue/2001'},{n:'Harbor Bites — Westside',u:'https://cms.internal/venue/2002'},{n:'The Salt Room',u:'https://cms.internal/venue/2003'}],
+      rules:[{t:'INTERVAL_SCHEDULED',src:'https://coastalrg.com/weekly-specials',cron:'0 9 * * 1',instr:'## Weekly Menu & Specials Sync\n- [ ] Pull this week\'s specials from the source URL\n- [ ] Log into each venue CMS profile\n- [ ] Update "Weekly Specials" section with new items and pricing\n- [ ] Verify hours of operation are accurate\n- [ ] Mark as complete in Agency Ops'}]},
+    { agency:'Coastal Restaurant Group', name:'New Event Pub Sync',            status:'ASSIGNED',   creator:'deshawn@agencyops.io', day:'MONDAY',   time:'11:00',
+      profiles:[{n:'The Salt Room',u:'https://cms.internal/venue/2003'}],
+      rules:[{t:'EVENT_DRIVEN',src:'https://coastalrg.com/events',cron:null,instr:'## Event-Driven: New Event Published\n- [ ] Monitor the source URL for new event listings\n- [ ] Create an event entry in each relevant venue CMS\n- [ ] Add event images and descriptions\n- [ ] Notify account manager once live'}]},
+    { agency:'NorthStar Sports Agency',  name:'Bi-Weekly Roster & Stats Update',status:'ASSIGNED',  creator:'priya@agencyops.io',   day:'WEDNESDAY',time:'14:00',
+      profiles:[{n:'Andre Washington (QB)',u:'https://cms.internal/athlete/3001'},{n:'Layla Kim (Track)',u:'https://cms.internal/athlete/3002'}],
+      rules:[{t:'INTERVAL_SCHEDULED',src:'https://northstarsports.com/roster',cron:'0 14 * * 3',instr:'## Bi-Weekly Roster & Stats Update\n- [ ] Pull latest stats from source URL\n- [ ] Update player bios and recent performance data in CMS\n- [ ] Add any new press mentions or media coverage links\n- [ ] Verify social links are up to date'}]},
+    { agency:'Apex Modeling LLC',        name:'Portfolio Image Sync',           status:'PAUSED',    creator:null,                   day:'THURSDAY', time:'11:00',
+      profiles:[{n:'Camille Rousseau',u:'https://cms.internal/model/4001'}],
+      rules:[{t:'INTERVAL_SCHEDULED',src:'https://apexmodeling.com/portfolio',cron:'0 11 * * 4',instr:'## Portfolio Image Sync\n- [ ] Download latest portfolio images from source\n- [ ] Compress and upload to CMS media library\n- [ ] Update portfolio gallery order\n- [ ] Verify featured image is current headshot'}]},
+    { agency:'Bloom PR Agency',          name:'Press Release Sync',             status:'UNASSIGNED',creator:null,                   day:'FRIDAY',   time:'10:00',
+      profiles:[{n:'Bloom PR — Newsroom',u:'https://cms.internal/pr/5001'}],
+      rules:[{t:'EVENT_DRIVEN',src:'https://bloompr.com/press-releases',cron:null,instr:'## Press Release Sync\n- [ ] Check source URL for new press releases\n- [ ] Create a press entry in the Newsroom CMS\n- [ ] Tag relevant clients from Client Hub\n- [ ] Notify the account lead'}]},
+  ];
+
+  for (const sr of srs) {
+    const cId = sr.creator ? userIds[sr.creator] : null;
+    const { lastID, rows } = await db.query(
+      'INSERT INTO service_requests (agency_id,service_name,status,assigned_creator_id,preferred_execution_day,preferred_execution_time) VALUES ($1,$2,$3,$4,$5,$6)',
+      [agencyIds[sr.agency], sr.name, sr.status, cId, sr.day, sr.time]);
+    const srId = lastID || (rows[0] && rows[0].id);
+    for (const p of sr.profiles) await db.query('INSERT INTO agency_sub_profiles (service_request_id,profile_name,internal_cms_edit_url) VALUES ($1,$2,$3)',[srId,p.n,p.u]);
+    for (const r of sr.rules) await db.query('INSERT INTO routine_rules (service_request_id,pipeline_type,source_url,execution_instructions,cron_interval_expression) VALUES ($1,$2,$3,$4,$5)',[srId,r.t,r.src,r.instr,r.cron]);
+    if (sr.status === 'ASSIGNED' && cId) {
+      const past = new Date(); past.setDate(past.getDate()-7);
+      const next = new Date(); next.setDate(next.getDate()+3);
+      await db.query('INSERT INTO agency_tasks (service_request_id,assigned_to_creator_id,status,scheduled_for_timestamp,started_at,completed_at) VALUES ($1,$2,\'COMPLETED\',$3,$4,$5)',[srId,cId,past.toISOString(),new Date(past.getTime()+900000).toISOString(),new Date(past.getTime()+3600000).toISOString()]);
+      await db.query('INSERT INTO agency_tasks (service_request_id,assigned_to_creator_id,status,scheduled_for_timestamp) VALUES ($1,$2,\'PENDING\',$3)',[srId,cId,next.toISOString()]);
+    }
+  }
+
+  // ── Assets ──
+  await db.query('INSERT INTO agency_assets (agency_id,added_by_user_id,asset_type,label,url,category,notes) VALUES ($1,$2,$3,$4,$5,$6,$7)',[null,userIds['jordan@agencyops.io'],'LINK','Universal Support Portal','https://support.internal.agencyops.io','CMS','Internal wiki guide on routine executions and SOPs']);
+  await db.query('INSERT INTO agency_assets (agency_id,added_by_user_id,asset_type,label,url,category,notes) VALUES ($1,$2,$3,$4,$5,$6,$7)',[agencyIds['Elite Talent Group'],userIds['jordan@agencyops.io'],'LINK','Official Spotify Music Portal','https://open.spotify.com/artist/elite-talent','SPOTIFY','Sync artist bios and streaming numbers from here.']);
+  await db.query('INSERT INTO agency_assets (agency_id,added_by_user_id,asset_type,label,url,category,notes) VALUES ($1,$2,$3,$4,$5,$6,$7)',[agencyIds['NorthStar Sports Agency'],userIds['jordan@agencyops.io'],'LINK','Athletics Roster News Desk','https://espn.com/college-sports/tracker','NEWS','Scan for injury reports or trade announcements.']);
+
+  // ── Chat Logs ──
+  await db.query('INSERT INTO agency_chat_logs (agency_id,added_by_user_id,sender_name,message_content) VALUES ($1,$2,$3,$4)',[agencyIds['Elite Talent Group'],userIds['jordan@agencyops.io'],'Jordan Reyes (Admin)','Client texted: Marcus Bell got a guest booking. Need to update his events page. Mia please update during your Friday sync!']);
+  await db.query('INSERT INTO agency_chat_logs (agency_id,added_by_user_id,sender_name,message_content) VALUES ($1,$2,$3,$4)',[agencyIds['Coastal Restaurant Group'],userIds['jordan@agencyops.io'],'Client Team','Updates for the menu: Lobster roll is back on specials for $24. Adding a cocktail promo: Ocean Breeze for $12. Update Downtown & Westside CMS before Monday morning.']);
+  await db.query('INSERT INTO agency_chat_logs (agency_id,added_by_user_id,sender_name,message_content) VALUES ($1,$2,$3,$4)',[agencyIds['NorthStar Sports Agency'],userIds['jordan@agencyops.io'],'Client Team','Layla Kim set a personal best of 11.23 seconds in the 100m sprint! Add this to her athletic profile stats.']);
+}
+
 // ─── Seed endpoint (protected, one-time) ──────────────────────────────────────
 
 app.post('/api/seed', async (req, res) => {
@@ -685,82 +759,12 @@ app.post('/api/seed', async (req, res) => {
   }
 
   try {
-    // Check if already seeded
     const { rows: existing } = await db.query('SELECT COUNT(*) as cnt FROM users');
     if (parseInt(existing[0].cnt) > 0) {
       return res.json({ ok: false, message: 'Already seeded — database has data.' });
     }
 
-    // ── Users ──
-    const users = [
-      { name: 'Jordan Reyes',   email: 'jordan@agencyops.io',  role: 'ADMIN'   },
-      { name: 'Mia Chen',       email: 'mia@agencyops.io',     role: 'CREATOR' },
-      { name: 'DeShawn Morris', email: 'deshawn@agencyops.io', role: 'CREATOR' },
-      { name: 'Priya Kapoor',   email: 'priya@agencyops.io',   role: 'CREATOR' },
-    ];
-    const userIds = {};
-    for (const u of users) {
-      const { lastID, rows } = await db.query(
-        'INSERT INTO users (name, email, role) VALUES ($1, $2, $3)', [u.name, u.email, u.role]);
-      userIds[u.email] = lastID || (rows[0] && rows[0].id);
-    }
-
-    // ── Agencies ──
-    const agencyNames = ['Elite Talent Group','Coastal Restaurant Group','NorthStar Sports Agency','Apex Modeling LLC','Bloom PR Agency'];
-    const agencyIds = {};
-    for (const name of agencyNames) {
-      const { lastID, rows } = await db.query('INSERT INTO agencies (name) VALUES ($1)', [name]);
-      agencyIds[name] = lastID || (rows[0] && rows[0].id);
-    }
-
-    // ── Service Requests ──
-    const srs = [
-      { agency:'Elite Talent Group',       name:'Weekly Profile Events Sync',    status:'ASSIGNED',   creator:'mia@agencyops.io',     day:'FRIDAY',    time:'17:00',
-        profiles:[{n:'Marcus Bell',u:'https://cms.internal/profile/1001'},{n:'Sofia Alvarez',u:'https://cms.internal/profile/1002'},{n:'Tyler Brooks',u:'https://cms.internal/profile/1003'}],
-        rules:[{t:'INTERVAL_SCHEDULED',src:'https://elitetalentgroup.com/events',cron:'0 8 * * 5',instr:'## Weekly Profile Events Update\n- [ ] Open source URL and scan for new bookings\n- [ ] Navigate to each profile CMS link below\n- [ ] Update the upcoming events section with new dates\n- [ ] Upload any new headshot images if provided\n- [ ] Save changes and confirm publish timestamp\n- [ ] Reply to agency contact confirming completion'}]},
-      { agency:'Coastal Restaurant Group', name:'Weekly Menu & Specials Sync',   status:'ASSIGNED',   creator:'deshawn@agencyops.io', day:'MONDAY',   time:'09:00',
-        profiles:[{n:'Harbor Bites — Downtown',u:'https://cms.internal/venue/2001'},{n:'Harbor Bites — Westside',u:'https://cms.internal/venue/2002'},{n:'The Salt Room',u:'https://cms.internal/venue/2003'}],
-        rules:[{t:'INTERVAL_SCHEDULED',src:'https://coastalrg.com/weekly-specials',cron:'0 9 * * 1',instr:'## Weekly Menu & Specials Sync\n- [ ] Pull this week\'s specials from the source URL\n- [ ] Log into each venue CMS profile\n- [ ] Update "Weekly Specials" section with new items and pricing\n- [ ] Verify hours of operation are accurate\n- [ ] Mark as complete in Agency Ops'}]},
-      { agency:'Coastal Restaurant Group', name:'New Event Pub Sync',            status:'ASSIGNED',   creator:'deshawn@agencyops.io', day:'MONDAY',   time:'11:00',
-        profiles:[{n:'The Salt Room',u:'https://cms.internal/venue/2003'}],
-        rules:[{t:'EVENT_DRIVEN',src:'https://coastalrg.com/events',cron:null,instr:'## Event-Driven: New Event Published\n- [ ] Monitor the source URL for new event listings\n- [ ] Create an event entry in each relevant venue CMS\n- [ ] Add event images and descriptions\n- [ ] Notify account manager once live'}]},
-      { agency:'NorthStar Sports Agency',  name:'Bi-Weekly Roster & Stats Update',status:'ASSIGNED',  creator:'priya@agencyops.io',   day:'WEDNESDAY',time:'14:00',
-        profiles:[{n:'Andre Washington (QB)',u:'https://cms.internal/athlete/3001'},{n:'Layla Kim (Track)',u:'https://cms.internal/athlete/3002'}],
-        rules:[{t:'INTERVAL_SCHEDULED',src:'https://northstarsports.com/roster',cron:'0 14 * * 3',instr:'## Bi-Weekly Roster & Stats Update\n- [ ] Pull latest stats from source URL\n- [ ] Update player bios and recent performance data in CMS\n- [ ] Add any new press mentions or media coverage links\n- [ ] Verify social links are up to date'}]},
-      { agency:'Apex Modeling LLC',        name:'Portfolio Image Sync',           status:'PAUSED',    creator:null,                   day:'THURSDAY', time:'11:00',
-        profiles:[{n:'Camille Rousseau',u:'https://cms.internal/model/4001'}],
-        rules:[{t:'INTERVAL_SCHEDULED',src:'https://apexmodeling.com/portfolio',cron:'0 11 * * 4',instr:'## Portfolio Image Sync\n- [ ] Download latest portfolio images from source\n- [ ] Compress and upload to CMS media library\n- [ ] Update portfolio gallery order\n- [ ] Verify featured image is current headshot'}]},
-      { agency:'Bloom PR Agency',          name:'Press Release Sync',             status:'UNASSIGNED',creator:null,                   day:'FRIDAY',   time:'10:00',
-        profiles:[{n:'Bloom PR — Newsroom',u:'https://cms.internal/pr/5001'}],
-        rules:[{t:'EVENT_DRIVEN',src:'https://bloompr.com/press-releases',cron:null,instr:'## Press Release Sync\n- [ ] Check source URL for new press releases\n- [ ] Create a press entry in the Newsroom CMS\n- [ ] Tag relevant clients from Client Hub\n- [ ] Notify the account lead'}]},
-    ];
-
-    for (const sr of srs) {
-      const cId = sr.creator ? userIds[sr.creator] : null;
-      const { lastID, rows } = await db.query(
-        'INSERT INTO service_requests (agency_id,service_name,status,assigned_creator_id,preferred_execution_day,preferred_execution_time) VALUES ($1,$2,$3,$4,$5,$6)',
-        [agencyIds[sr.agency], sr.name, sr.status, cId, sr.day, sr.time]);
-      const srId = lastID || (rows[0] && rows[0].id);
-      for (const p of sr.profiles) await db.query('INSERT INTO agency_sub_profiles (service_request_id,profile_name,internal_cms_edit_url) VALUES ($1,$2,$3)',[srId,p.n,p.u]);
-      for (const r of sr.rules) await db.query('INSERT INTO routine_rules (service_request_id,pipeline_type,source_url,execution_instructions,cron_interval_expression) VALUES ($1,$2,$3,$4,$5)',[srId,r.t,r.src,r.instr,r.cron]);
-      if (sr.status === 'ASSIGNED' && cId) {
-        const past = new Date(); past.setDate(past.getDate()-7);
-        const next = new Date(); next.setDate(next.getDate()+3);
-        await db.query('INSERT INTO agency_tasks (service_request_id,assigned_to_creator_id,status,scheduled_for_timestamp,started_at,completed_at) VALUES ($1,$2,\'COMPLETED\',$3,$4,$5)',[srId,cId,past.toISOString(),new Date(past.getTime()+900000).toISOString(),new Date(past.getTime()+3600000).toISOString()]);
-        await db.query('INSERT INTO agency_tasks (service_request_id,assigned_to_creator_id,status,scheduled_for_timestamp) VALUES ($1,$2,\'PENDING\',$3)',[srId,cId,next.toISOString()]);
-      }
-    }
-
-    // ── Assets ──
-    await db.query('INSERT INTO agency_assets (agency_id,added_by_user_id,asset_type,label,url,category,notes) VALUES ($1,$2,$3,$4,$5,$6,$7)',[null,userIds['jordan@agencyops.io'],'LINK','Universal Support Portal','https://support.internal.agencyops.io','CMS','Internal wiki guide on routine executions and SOPs']);
-    await db.query('INSERT INTO agency_assets (agency_id,added_by_user_id,asset_type,label,url,category,notes) VALUES ($1,$2,$3,$4,$5,$6,$7)',[agencyIds['Elite Talent Group'],userIds['jordan@agencyops.io'],'LINK','Official Spotify Music Portal','https://open.spotify.com/artist/elite-talent','SPOTIFY','Sync artist bios and streaming numbers from here.']);
-    await db.query('INSERT INTO agency_assets (agency_id,added_by_user_id,asset_type,label,url,category,notes) VALUES ($1,$2,$3,$4,$5,$6,$7)',[agencyIds['NorthStar Sports Agency'],userIds['jordan@agencyops.io'],'LINK','Athletics Roster News Desk','https://espn.com/college-sports/tracker','NEWS','Scan for injury reports or trade announcements.']);
-
-    // ── Chat Logs ──
-    await db.query('INSERT INTO agency_chat_logs (agency_id,added_by_user_id,sender_name,message_content) VALUES ($1,$2,$3,$4)',[agencyIds['Elite Talent Group'],userIds['jordan@agencyops.io'],'Jordan Reyes (Admin)','Client texted: Marcus Bell got a guest booking. Need to update his events page. Mia please update during your Friday sync!']);
-    await db.query('INSERT INTO agency_chat_logs (agency_id,added_by_user_id,sender_name,message_content) VALUES ($1,$2,$3,$4)',[agencyIds['Coastal Restaurant Group'],userIds['jordan@agencyops.io'],'Client Team','Updates for the menu: Lobster roll is back on specials for $24. Adding a cocktail promo: Ocean Breeze for $12. Update Downtown & Westside CMS before Monday morning.']);
-    await db.query('INSERT INTO agency_chat_logs (agency_id,added_by_user_id,sender_name,message_content) VALUES ($1,$2,$3,$4)',[agencyIds['NorthStar Sports Agency'],userIds['jordan@agencyops.io'],'Client Team','Layla Kim set a personal best of 11.23 seconds in the 100m sprint! Add this to her athletic profile stats.']);
-
+    await performSeed();
     res.json({ ok: true, message: 'Seeded successfully!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -775,7 +779,19 @@ app.get('*', (req, res) => {
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
-db.init().then(() => {
+db.init().then(async () => {
+  // Auto-seed if SQLite DB is completely empty (occurs on clean deploys)
+  try {
+    const { rows } = await db.query('SELECT COUNT(*) as cnt FROM users');
+    if (parseInt(rows[0].cnt) === 0) {
+      console.log('🌱 Database is empty. Running auto-seeder on startup...');
+      await performSeed();
+      console.log('✅ Auto-seed completed successfully!');
+    }
+  } catch (err) {
+    console.warn('Auto-seed check failed (will proceed):', err.message);
+  }
+
   app.listen(PORT, () => {
     console.log(`🚀  Agency Ops running → http://localhost:${PORT}`);
   });
