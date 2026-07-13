@@ -370,8 +370,40 @@ const App = (() => {
     vc.innerHTML = shimmerPage();
     const [sr, users] = await Promise.all([API.getServiceRequest(id), API.getUsers()]);
     state.users = users;
+    window._cachedCreators = users;
 
     const tasks = await API.getTasks({ service_request_id: id });
+    const creatorList = users.filter(u => u.role === 'CREATOR');
+
+    // ── Inline reassign panel ──
+    const reassignPanel = state.role === 'ADMIN' ? `
+      <div class="reassign-panel">
+        <div class="reassign-panel-left">
+          ${sr.assigned_creator_id
+            ? `<div class="mini-avatar" style="background:${Components.avatarColor(sr.creator_name)};width:34px;height:34px;font-size:0.85rem">${Components.initials(sr.creator_name)}</div>
+               <div>
+                 <div style="font-size:0.7rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Assigned To</div>
+                 <div style="font-size:0.9rem;font-weight:700;color:var(--text-primary)">${escHtml(sr.creator_name)}</div>
+               </div>`
+            : `<div style="width:34px;height:34px;border-radius:50%;background:var(--warning-subtle);display:flex;align-items:center;justify-content:center;font-size:1rem">⚠️</div>
+               <div>
+                 <div style="font-size:0.7rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Assigned To</div>
+                 <div style="font-size:0.9rem;font-weight:700;color:var(--warning)">Unassigned</div>
+               </div>`
+          }
+        </div>
+        <div class="reassign-panel-right">
+          <label style="font-size:0.72rem;color:var(--text-muted);font-weight:600">${sr.assigned_creator_id ? '🔄 Reassign Creator' : '⚡ Assign Creator'}</label>
+          <select class="form-select" id="detail-reassign-select" style="min-width:220px"
+            onchange="App.quickAssignCreator(${sr.id}, this.value)">
+            <option value="">${sr.assigned_creator_id ? '— Pick a different creator —' : '— Pick a creator —'}</option>
+            ${creatorList.map(c =>
+              `<option value="${c.id}" ${c.id === sr.assigned_creator_id ? 'selected' : ''}>${escHtml(c.name)} · ${c.active_bundles || 0} active · ${c.open_tasks || 0} tasks</option>`
+            ).join('')}
+          </select>
+        </div>
+      </div>
+    ` : '';
 
     vc.innerHTML = `
       <div class="page-header">
@@ -386,13 +418,14 @@ const App = (() => {
         </div>
         ${state.role === 'ADMIN' ? `
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-secondary" onclick="App.openHotSwap(${sr.id},'${escHtml(sr.service_name)}')">🔀 Re-route Creator</button>
           <button class="btn btn-secondary" onclick="App.openTrigger(${sr.id},'${escHtml(sr.service_name)}')">⚡ Trigger Tasks</button>
           ${sr.status !== 'PAUSED'
             ? `<button class="btn btn-warning" onclick="App.setServiceRequestStatus(${sr.id},'PAUSED')">⏸ Pause</button>`
             : `<button class="btn btn-success" onclick="App.setServiceRequestStatus(${sr.id},'ASSIGNED')">▶ Resume</button>`}
         </div>` : ''}
       </div>
+
+      ${reassignPanel}
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px">
         <div class="card">
@@ -440,6 +473,7 @@ const App = (() => {
       </div>
     `;
   }
+
 
   // ── Task Queue ─────────────────────────────────────────────
   async function renderTasks() {

@@ -441,6 +441,34 @@ body {
 }
 .quick-assign-select option { background: var(--bg-elevated); }
 
+/* Reassign panel (detail page) */
+.reassign-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  padding: 14px 20px;
+  margin-bottom: 22px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.reassign-panel-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.reassign-panel-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
 /* Asset Library */
 .asset-card {
   display: flex;

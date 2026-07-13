@@ -182,39 +182,42 @@ function renderServiceRequestCard(sr, role, creators) {
   const profileCount = (sr.sub_profiles || []).length;
   const ruleCount    = (sr.routine_rules || []).length;
   const _creators    = creators || window._cachedCreators || [];
+  const creatorList  = _creators.filter(c => c.role === 'CREATOR');
 
   const scheduleHtml = sr.preferred_execution_day
     ? `<span class="meta-item">📅 ${sr.preferred_execution_day} ${fmtTime(sr.preferred_execution_time)}</span>`
     : '';
 
-  // ── Quick-assign inline dropdown (only for ADMIN + UNASSIGNED) ──
-  const quickAssignHtml = (role === 'ADMIN' && sr.status === 'UNASSIGNED' && _creators.length > 0) ? `
+  // ── Unified inline assign / reassign dropdown (ADMIN only) ──
+  const assignLabel  = sr.assigned_creator_id ? '🔄 Reassign' : '⚡ Assign';
+  const inlineAssignHtml = (role === 'ADMIN' && creatorList.length > 0) ? `
     <div class="quick-assign-row" onclick="event.stopPropagation()">
-      <span style="font-size:0.75rem;color:var(--accent-light);font-weight:600">⚡ Quick Assign</span>
+      ${sr.assigned_creator_id
+        ? `<div class="mini-avatar" style="background:${avatarColor(sr.creator_name)};flex-shrink:0">${initials(sr.creator_name)}</div>
+           <span class="assigned-creator-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px" title="${escHtml(sr.creator_name)}">${escHtml(sr.creator_name)}</span>`
+        : `<span style="font-size:0.75rem;color:var(--warning);font-weight:600">⚠️ Unassigned</span>`
+      }
       <select class="quick-assign-select" id="qa-select-${sr.id}"
         onchange="event.stopPropagation();App.quickAssignCreator(${sr.id},this.value)">
-        <option value="">— Pick a creator —</option>
-        ${_creators.filter(c => c.role === 'CREATOR').map(c =>
-          `<option value="${c.id}">${escHtml(c.name)} (${c.active_bundles || 0} active)</option>`
+        <option value="">${assignLabel}…</option>
+        ${creatorList.map(c =>
+          `<option value="${c.id}" ${c.id === sr.assigned_creator_id ? 'selected' : ''}>${escHtml(c.name)} (${c.active_bundles || 0} active)</option>`
         ).join('')}
       </select>
     </div>
-  ` : '';
-
-  const creatorHtml = sr.assigned_creator_id
+  ` : (sr.assigned_creator_id
     ? `<div class="assigned-creator-row">
          <div class="mini-avatar" style="background:${avatarColor(sr.creator_name)}">${initials(sr.creator_name)}</div>
          <span class="assigned-creator-name">${escHtml(sr.creator_name)}</span>
        </div>`
-    : quickAssignHtml || `<span class="text-muted">Unassigned</span>`;
+    : `<span class="text-muted">Unassigned</span>`);
 
   const adminControls = role === 'ADMIN' ? `
     <div style="display:flex;gap:6px;margin-top:12px">
       ${sr.status !== 'PAUSED'
         ? `<button class="btn btn-warning btn-sm" onclick="event.stopPropagation();App.setServiceRequestStatus(${sr.id},'PAUSED')">⏸ Pause</button>`
         : `<button class="btn btn-success btn-sm" onclick="event.stopPropagation();App.setServiceRequestStatus(${sr.id},'ASSIGNED')">▶ Resume</button>`}
-      <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();App.openHotSwap(${sr.id},'${escHtml(sr.service_name)}')">🔀 Re-route</button>
-      <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();App.deleteServiceRequest(${sr.id})">🗑</button>
+      <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();App.deleteServiceRequest(${sr.id})">🗑 Delete</button>
     </div>
   ` : '';
 
@@ -233,7 +236,7 @@ function renderServiceRequestCard(sr, role, creators) {
         ${scheduleHtml}
       </div>
       <div class="bundle-card-footer">
-        ${creatorHtml}
+        ${inlineAssignHtml}
         <button class="btn btn-secondary btn-sm"
           onclick="event.stopPropagation();App.openTrigger(${sr.id},'${escHtml(sr.service_name)}')">
           ⚡ Trigger
