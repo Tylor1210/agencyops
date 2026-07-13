@@ -43,6 +43,34 @@ function parseCronToNextTimestamp(expr) {
   return d.toISOString();
 }
 
+async function generateTasksForRequest(srId, creatorId) {
+  const { rows: rules } = await db.query(
+    'SELECT * FROM routine_rules WHERE service_request_id = $1', [srId]);
+  const created = [];
+
+  for (const rule of rules) {
+    // Check if there is already an active pending/in-progress task for this rule
+    const { rows: existing } = await db.query(
+      `SELECT * FROM agency_tasks 
+       WHERE service_request_id = $1 AND status IN ('PENDING', 'IN_PROGRESS')`,
+      [srId]
+    );
+
+    if (existing.length === 0) {
+      // For manual triggers or new assignments, schedule for now
+      const ts = new Date().toISOString();
+      const { lastID, rows } = await db.query(
+        `INSERT INTO agency_tasks (service_request_id, assigned_to_creator_id, status, scheduled_for_timestamp)
+         VALUES ($1, $2, 'PENDING', $3)`,
+        [srId, creatorId, ts]
+      );
+      const taskId = lastID || (rows[0] && rows[0].id);
+      created.push({ task_id: taskId, service_request_id: srId, scheduled_for: ts });
+    }
+  }
+  return created;
+}
+
 // ─── USERS ────────────────────────────────────────────────────────────────────
 
 // GET /api/users — list creators with workload stats
@@ -287,6 +315,10 @@ app.post('/api/service_requests', async (req, res) => {
       );
     }
 
+    if (status === 'ASSIGNED' && assigned_creator_id) {
+      await generateTasksForRequest(serviceRequestId, assigned_creator_id);
+    }
+
     const { rows: [created] } = await db.query('SELECT * FROM service_requests WHERE id = $1', [serviceRequestId]);
     res.status(201).json(created);
   } catch (err) {
@@ -371,6 +403,9 @@ app.post('/api/service_requests/:id/route', async (req, res) => {
         [new_creator_id, srId]
       );
     });
+
+    // Auto-generate active tasks for the new assignment if none exist
+    await generateTasksForRequest(srId, new_creator_id);
 
     const { rows: [sr] } = await db.query(`
       SELECT sr.*, a.name as agency_name, u.name as creator_name
@@ -475,16 +510,23 @@ app.put('/api/tasks/:id', async (req, res) => {
 app.post('/api/tasks/generate', async (req, res) => {
   try {
     const { service_request_id } = req.query;
+    
+    if (service_request_id) {
+      const { rows: [sr] } = await db.query('SELECT * FROM service_requests WHERE id = $1', [service_request_id]);
+      if (sr && sr.assigned_creator_id) {
+        const created = await generateTasksForRequest(service_request_id, sr.assigned_creator_id);
+        return res.json({ generated: created.length, tasks: created });
+      }
+      return res.json({ generated: 0, tasks: [] });
+    }
+
     let sql = `
       SELECT rr.*, sr.assigned_creator_id, sr.id as srid
       FROM routine_rules rr
       JOIN service_requests sr ON rr.service_request_id = sr.id
       WHERE sr.status = 'ASSIGNED' AND rr.pipeline_type = 'INTERVAL_SCHEDULED' AND rr.cron_interval_expression IS NOT NULL
     `;
-    const params = [];
-    if (service_request_id) { params.push(service_request_id); sql += ` AND sr.id=$${params.length}`; }
-
-    const { rows: rules } = await db.query(sql, params);
+    const { rows: rules } = await db.query(sql);
     const created = [];
 
     for (const rule of rules) {

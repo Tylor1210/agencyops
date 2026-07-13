@@ -406,7 +406,7 @@ const App = (() => {
     vc.innerHTML = `
       <div class="page-header">
         <div>
-          <button class="btn btn-secondary btn-sm" style="margin-bottom:10px" onclick="App.navigate('agencies')">← Back to Agencies</button>
+          <button class="btn btn-secondary btn-sm" style="margin-bottom:10px" onclick="if(history.length > 1) { history.back(); } else { App.navigate('agencies'); }">← Back</button>
           <h1>🏢 ${escHtml(agency.name)}</h1>
           <p>Agency Workspace &bull; Service assets, groupchat briefings, and routines</p>
         </div>
@@ -500,7 +500,7 @@ const App = (() => {
     vc.innerHTML = `
       <div class="page-header">
         <div>
-          <button class="btn btn-secondary btn-sm" style="margin-bottom:10px" onclick="App.navigate('agencies/${sr.agency_id}')">← Back to Agency</button>
+          <button class="btn btn-secondary btn-sm" style="margin-bottom:10px" onclick="if(history.length > 1) { history.back(); } else { App.navigate('agencies/${sr.agency_id}'); }">← Back</button>
           <h1>${escHtml(sr.service_name)}</h1>
           <p>
             ${Components.statusBadge(sr.status)} 
