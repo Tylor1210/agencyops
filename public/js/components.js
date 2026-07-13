@@ -381,51 +381,84 @@ function toggleChecklistItem(taskId, itemId) {
 
 // ── Plumber-Style Dispatch Planner (Creator Route Planner) ───────────────────
 
-function renderRouteJobCard(r, myTasks, isToday) {
-  const currentTask = myTasks.find(t => t.service_request_id === r.id && t.status !== 'COMPLETED');
-  const status = currentTask ? currentTask.status : (r.status === 'PAUSED' ? 'PAUSED' : 'PENDING');
-  
-  let statusBadgeHtml = '';
-  if (r.status === 'PAUSED') {
-    statusBadgeHtml = `<span class="badge badge-paused">Paused</span>`;
-  } else if (currentTask) {
-    statusBadgeHtml = statusBadge(currentTask.status);
-  } else {
-    statusBadgeHtml = `<span class="badge badge-pending">Scheduled</span>`;
+function renderTimeBlockPlanner(myRequests, myTasks) {
+  const todayJobs = [];
+  const upcomingJobs = [];
+  const standbyJobs = [];
+
+  const now = new Date();
+  // End of today (23:59:59.999)
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  for (const r of myRequests) {
+    if (r.status === 'PAUSED') {
+      standbyJobs.push(r);
+      continue;
+    }
+
+    const currentTask = myTasks.find(t => t.service_request_id === r.id && t.status !== 'COMPLETED');
+    
+    if (currentTask) {
+      const taskDate = new Date(currentTask.scheduled_for_timestamp);
+      if (taskDate <= endOfToday) {
+        // Due today or overdue!
+        todayJobs.push(r);
+      } else {
+        upcomingJobs.push(r);
+      }
+    } else {
+      // No active task currently spawned
+      if (r.preferred_execution_day) {
+        upcomingJobs.push(r);
+      } else {
+        standbyJobs.push(r);
+      }
+    }
   }
 
-  const timeLabel = r.preferred_execution_time ? fmtTime(r.preferred_execution_time) : 'Flexible';
-  const scheduleDesc = r.preferred_execution_day 
-    ? `📅 Runs every ${r.preferred_execution_day} at ${timeLabel}`
-    : '⚡ Event-driven / Manual Trigger';
+  const formatScheduleLabel = (r, timeLabel) => {
+    if (!r.preferred_execution_day) return '⚡ Event-driven / Manual Trigger';
+    const dayVal = r.preferred_execution_day;
+    const isSpecial = dayVal.toLowerCase().includes('month') || dayVal.toLowerCase() === 'daily' || dayVal.toLowerCase() === 'bi-weekly';
+    return `📅 Runs ${isSpecial ? dayVal : 'every ' + dayVal} at ${timeLabel}`;
+  };
 
-  const actionBtn = currentTask 
-    ? `<button class="btn btn-primary btn-sm" onclick="App.navigate('workspace/${currentTask.id}')">Start Dispatch →</button>`
-    : `<button class="btn btn-secondary btn-sm" onclick="App.navigate('service_requests/${r.id}')">View Details</button>`;
+  const renderRouteCard = (r, isToday) => {
+    const currentTask = myTasks.find(t => t.service_request_id === r.id && t.status !== 'COMPLETED');
+    const status = currentTask ? currentTask.status : (r.status === 'PAUSED' ? 'PAUSED' : 'PENDING');
+    
+    let statusBadgeHtml = '';
+    if (r.status === 'PAUSED') {
+      statusBadgeHtml = `<span class="badge badge-paused">Paused</span>`;
+    } else if (currentTask) {
+      statusBadgeHtml = statusBadge(currentTask.status);
+    } else {
+      statusBadgeHtml = `<span class="badge badge-pending">Scheduled</span>`;
+    }
 
-  return `
-    <div class="dispatch-card ${status.toLowerCase()}${isToday ? ' highlight-today' : ''}">
-      <div class="dispatch-card-left">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <strong class="dispatch-client-name">🏢 ${escHtml(r.agency_name)}</strong>
-          ${statusBadgeHtml}
+    const timeLabel = r.preferred_execution_time ? fmtTime(r.preferred_execution_time) : 'Flexible';
+    const scheduleDesc = formatScheduleLabel(r, timeLabel);
+
+    const actionBtn = currentTask 
+      ? `<button class="btn btn-primary btn-sm" onclick="App.navigate('workspace/${currentTask.id}')">Start Dispatch →</button>`
+      : `<button class="btn btn-secondary btn-sm" onclick="App.navigate('service_requests/${r.id}')">View Details</button>`;
+
+    return `
+      <div class="dispatch-card ${status.toLowerCase()}${isToday ? ' highlight-today' : ''}">
+        <div class="dispatch-card-left">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <strong class="dispatch-client-name">🏢 ${escHtml(r.agency_name)}</strong>
+            ${statusBadgeHtml}
+          </div>
+          <div class="dispatch-job-name">${escHtml(r.service_name)}</div>
+          <div class="dispatch-schedule-meta">${scheduleDesc}</div>
         </div>
-        <div class="dispatch-job-name">${escHtml(r.service_name)}</div>
-        <div class="dispatch-schedule-meta">${scheduleDesc}</div>
+        <div class="dispatch-card-right">
+          ${actionBtn}
+        </div>
       </div>
-      <div class="dispatch-card-right">
-        ${actionBtn}
-      </div>
-    </div>
-  `;
-}
-
-function renderTimeBlockPlanner(myRequests, myTasks) {
-  const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-  
-  const todayJobs = myRequests.filter(r => (r.preferred_execution_day || '').toUpperCase() === todayName && r.status === 'ASSIGNED');
-  const upcomingJobs = myRequests.filter(r => (r.preferred_execution_day || '').toUpperCase() !== todayName && r.preferred_execution_day && r.status === 'ASSIGNED');
-  const standbyJobs = myRequests.filter(r => !r.preferred_execution_day && r.status === 'ASSIGNED');
+    `;
+  };
 
   return `
     <div class="dispatch-planner" style="display:flex; flex-direction:column; gap:18px">
@@ -437,7 +470,7 @@ function renderTimeBlockPlanner(myRequests, myTasks) {
           <span class="dispatch-count">${todayJobs.length} scheduled</span>
         </div>
         <div class="dispatch-list">
-          ${todayJobs.map(j => renderRouteJobCard(j, myTasks, true)).join('') 
+          ${todayJobs.map(j => renderRouteCard(j, true)).join('') 
             || '<div class="dispatch-empty">🌴 No service routes scheduled for today.</div>'}
         </div>
       </div>
@@ -445,12 +478,12 @@ function renderTimeBlockPlanner(myRequests, myTasks) {
       <!-- 📅 Weekly Route -->
       <div class="dispatch-section upcoming">
         <div class="dispatch-section-header">
-          <span class="dispatch-badge upcoming">WEEKLY</span>
+          <span class="dispatch-badge upcoming">UPCOMING</span>
           <h3>Upcoming Service Routes</h3>
           <span class="dispatch-count">${upcomingJobs.length} clients</span>
         </div>
         <div class="dispatch-list">
-          ${upcomingJobs.map(j => renderRouteJobCard(j, myTasks, false)).join('') 
+          ${upcomingJobs.map(j => renderRouteCard(j, false)).join('') 
             || '<div class="dispatch-empty">No upcoming routes scheduled.</div>'}
         </div>
       </div>
@@ -463,7 +496,7 @@ function renderTimeBlockPlanner(myRequests, myTasks) {
           <span class="dispatch-count">${standbyJobs.length} active</span>
         </div>
         <div class="dispatch-list">
-          ${standbyJobs.map(j => renderRouteJobCard(j, myTasks, false)).join('') 
+          ${standbyJobs.map(j => renderRouteCard(j, false)).join('') 
             || '<div class="dispatch-empty">No standby queues active.</div>'}
         </div>
       </div>
@@ -610,15 +643,33 @@ function renderCreateServiceRequestModal(agencies, creators) {
           </div>
           <div class="form-grid">
             <div class="form-group">
-              <label class="form-label">Preferred Execution Day</label>
+              <label class="form-label">Preferred Execution Schedule *</label>
               <select class="form-select" id="csr-day">
-                <option value="">Select Day</option>
-                ${days.map(d => `<option value="${d}">${d}</option>`).join('')}
+                <option value="">Select Schedule...</option>
+                <optgroup label="Weekly Options">
+                  <option value="MONDAY" selected>Every Monday</option>
+                  <option value="TUESDAY">Every Tuesday</option>
+                  <option value="WEDNESDAY">Every Wednesday</option>
+                  <option value="THURSDAY">Every Thursday</option>
+                  <option value="FRIDAY">Every Friday</option>
+                  <option value="SATURDAY">Every Saturday</option>
+                  <option value="SUNDAY">Every Sunday</option>
+                </optgroup>
+                <optgroup label="Monthly Options">
+                  <option value="1st of Month">1st of Month</option>
+                  <option value="15th of Month">15th of Month</option>
+                  <option value="1st & 15th of Month">1st & 15th of Month</option>
+                  <option value="Last Day of Month">Last Day of Month</option>
+                </optgroup>
+                <optgroup label="Daily & Bi-Weekly Options">
+                  <option value="DAILY">Daily (Every Day)</option>
+                  <option value="BI-WEEKLY">Bi-Weekly (Every 2 Weeks on Monday)</option>
+                </optgroup>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Preferred Time</label>
-              <input class="form-input" type="time" id="csr-time" />
+              <input class="form-input" type="time" id="csr-time" value="09:00" />
             </div>
           </div>
           <div class="form-group">
@@ -659,8 +710,8 @@ function renderCreateServiceRequestModal(agencies, creators) {
               <input type="hidden" id="rr-type-0" value="INTERVAL_SCHEDULED" />
             </div>
 
-            <!-- Frequency (shown for INTERVAL_SCHEDULED) -->
-            <div class="form-group" id="rr-freq-grp-0">
+            <!-- Frequency (hidden for INTERVAL_SCHEDULED, as we use Preferred Execution Schedule) -->
+            <div class="form-group" id="rr-freq-grp-0" style="display:none">
               <label class="form-label">How often should this run?</label>
               <select class="form-select" id="rr-freq-0" onchange="Components.onFreqChange(0)">
                 ${presetOptions}
@@ -793,6 +844,30 @@ function freqToCron(value) {
     'daily':        '0 9 * * *',
   };
   return map[value] || null;
+}
+
+function scheduleToCron(schedule, timeStr) {
+  if (!schedule) return null;
+  const [hourStr, minStr] = (timeStr || '09:00').split(':');
+  const h = parseInt(hourStr, 10) || 9;
+  const m = parseInt(minStr, 10) || 0;
+
+  switch (schedule) {
+    case 'MONDAY':    return `${m} ${h} * * 1`;
+    case 'TUESDAY':   return `${m} ${h} * * 2`;
+    case 'WEDNESDAY': return `${m} ${h} * * 3`;
+    case 'THURSDAY':  return `${m} ${h} * * 4`;
+    case 'FRIDAY':    return `${m} ${h} * * 5`;
+    case 'SATURDAY':  return `${m} ${h} * * 6`;
+    case 'SUNDAY':    return `${m} ${h} * * 0`;
+    case '1st of Month': return `${m} ${h} 1 * *`;
+    case '15th of Month': return `${m} ${h} 15 * *`;
+    case '1st & 15th of Month': return `${m} ${h} 1,15 * *`;
+    case 'Last Day of Month': return `${m} ${h} L * *`;
+    case 'DAILY':     return `${m} ${h} * * *`;
+    case 'BI-WEEKLY': return `${m} ${h} * * 1/2`;
+    default:          return null;
+  }
 }
 
 // ── Social media platform definitions ────────────────────────────────────────
@@ -941,7 +1016,7 @@ function selectRuleType(idx, type) {
 
   if (type === 'INTERVAL_SCHEDULED') {
     document.getElementById(`rr-btn-scheduled-${idx}`)?.classList.add('active');
-    if (freqGrp)   { freqGrp.style.display = ''; }
+    if (freqGrp)   { freqGrp.style.display = 'none'; }
     if (socialGrp) { socialGrp.style.display = 'none'; }
     if (srcGrp)    { srcGrp.style.display = ''; }
   } else if (type === 'SOCIAL_MONITOR') {
@@ -1240,7 +1315,7 @@ window.Components = {
   renderTriggerModal, renderSchedulerModal,
   renderAssetCard, renderAddAssetModal, categoryMeta,
   renderTimeBlockPlanner, renderChatLogsFeed,
-  addSubProfileRow, addRoutineRuleRow, onRuleTypeChange, onFreqChange, freqToCron,
+  addSubProfileRow, addRoutineRuleRow, onRuleTypeChange, onFreqChange, freqToCron, scheduleToCron,
   selectRuleType, addStep, removeStep, renumberSteps, collectSteps,
   selectPlatform, onSocialFreqChange, collectSocialSource,
   openModal, closeModal,

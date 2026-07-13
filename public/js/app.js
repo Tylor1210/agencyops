@@ -1045,8 +1045,7 @@ const App = (() => {
         instr = social.instr_prefix + (steps || '');
       } else {
         src   = document.getElementById(`rr-src-${idx}`)?.value.trim() || null;
-        const freq = document.getElementById(`rr-freq-${idx}`)?.value || null;
-        cron  = type === 'EVENT_DRIVEN' ? null : Components.freqToCron(freq);
+        cron  = type === 'EVENT_DRIVEN' ? null : Components.scheduleToCron(day, time);
         instr = Components.collectSteps(idx);
       }
 

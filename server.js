@@ -26,20 +26,60 @@ function parseCronToNextTimestamp(expr) {
   const parts = expr.trim().split(/\s+/);
   if (parts.length !== 5) return new Date(Date.now() + 7 * 86400000).toISOString();
 
-  const [min, hour, , , dow] = parts;
+  const [min, hour, dom, month, dow] = parts;
   const targetHour = hour === '*' ? 0 : parseInt(hour, 10);
   const targetMin  = min  === '*' ? 0 : parseInt(min,  10);
-  const targetDow  = dow  === '*' ? -1 : parseInt(dow, 10); // 0=Sun..6=Sat
 
-  const d = new Date();
+  const d = new Date(now.getTime());
   d.setHours(targetHour, targetMin, 0, 0);
-  if (d <= now) d.setDate(d.getDate() + 1);
 
-  if (targetDow !== -1) {
-    while (d.getDay() !== targetDow) {
-      d.setDate(d.getDate() + 1);
-    }
+  if (d <= now) {
+    d.setDate(d.getDate() + 1);
   }
+
+  // Helper for bi-weekly check
+  const isBiWeeklyWeek = (date) => {
+    // Get week number since a fixed Monday in 2026 (e.g. 2026-01-05 is a Monday)
+    const epoch = new Date(2026, 0, 5);
+    const diffMs = date.getTime() - epoch.getTime();
+    const diffWeeks = Math.floor(diffMs / (7 * 86400000));
+    return diffWeeks % 2 === 0;
+  };
+
+  for (let i = 0; i < 366; i++) {
+    const currentDom = d.getDate();
+    const currentDow = d.getDay(); // 0-6
+
+    let matchesDom = false;
+    if (dom === '*') {
+      matchesDom = true;
+    } else if (dom === 'L') {
+      const temp = new Date(d.getTime());
+      temp.setDate(temp.getDate() + 1);
+      matchesDom = temp.getDate() === 1;
+    } else {
+      const allowedDoms = dom.split(',').map(Number);
+      matchesDom = allowedDoms.includes(currentDom);
+    }
+
+    let matchesDow = false;
+    if (dow === '*') {
+      matchesDow = true;
+    } else {
+      if (dow === '1/2') {
+        matchesDow = (currentDow === 1) && isBiWeeklyWeek(d);
+      } else {
+        const allowedDows = dow.split(',').map(Number);
+        matchesDow = allowedDows.includes(currentDow);
+      }
+    }
+
+    if (matchesDom && matchesDow) {
+      return d.toISOString();
+    }
+    d.setDate(d.getDate() + 1);
+  }
+
   return d.toISOString();
 }
 
