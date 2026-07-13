@@ -519,20 +519,7 @@ const App = (() => {
 
       ${reassignPanel}
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px">
-        <div class="card">
-          <div class="card-header"><h2>👤 Sub-Profiles / Talent (${sr.sub_profiles.length})</h2></div>
-          <div class="card-body">
-            <div class="profile-link-list">
-              ${sr.sub_profiles.map(p => `
-                <div class="profile-link-item">
-                  <span class="profile-link-name">${escHtml(p.profile_name)}</span>
-                  <a href="${escHtml(p.internal_cms_edit_url)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open CMS</a>
-                </div>
-              `).join('') || '<p class="text-muted">No profiles linked.</p>'}
-            </div>
-          </div>
-        </div>
+      <div style="margin-bottom:22px">
         <div class="card">
           <div class="card-header"><h2>📋 Routine Checklist Blueprint (${sr.routine_rules.length})</h2></div>
           <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
@@ -665,22 +652,6 @@ const App = (() => {
             </div>
           </div>` : ''}
 
-          <div class="card">
-            <div class="card-header"><h2>👥 Sub-Profiles / CMS Links</h2></div>
-            <div class="card-body">
-              <div class="profile-link-list">
-                ${profiles.map(p => `
-                  <div class="profile-link-item">
-                    <div>
-                      <div class="profile-link-name">${escHtml(p.profile_name)}</div>
-                      <div class="profile-link-url">${escHtml(p.internal_cms_edit_url)}</div>
-                    </div>
-                    <a href="${escHtml(p.internal_cms_edit_url)}" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Open CMS</a>
-                  </div>
-                `).join('') || '<p class="text-muted">No profiles linked.</p>'}
-              </div>
-            </div>
-          </div>
         </div>
 
         <div>

@@ -532,6 +532,20 @@ function renderCreateServiceRequestModal(agencies, creators) {
 
   const days = ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY'];
 
+  const presetOptions = FREQ_PRESETS
+    .map(p => `<option value="${p.value}">${p.label}</option>`)
+    .join('');
+
+  const platformBtns = SOCIAL_PLATFORMS.map(p => `
+    <button type="button" class="platform-btn" id="rr-plat-btn-0-${p.id}"
+      onclick="Components.selectPlatform(0,'${p.id}')">
+      <span class="platform-icon">${p.icon}</span>
+      <span class="platform-label">${p.label}</span>
+    </button>
+  `).join('');
+
+  _stepCounters[0] = 1;
+
   return `
     <div class="modal-overlay" id="create-sr-modal" onclick="if(event.target===this)Components.closeModal('create-sr-modal')">
       <div class="modal modal-wide">
@@ -575,29 +589,105 @@ function renderCreateServiceRequestModal(agencies, creators) {
           </div>
 
           <div class="divider"></div>
-          <div class="flex-between" style="margin-bottom:10px">
-            <strong style="font-size:0.88rem">Sub-Profiles / Talent</strong>
-            <button class="btn btn-secondary btn-sm" onclick="Components.addSubProfileRow()">+ Add Profile</button>
-          </div>
-          <div id="sub-profiles-list" style="display:flex;flex-direction:column;gap:8px">
-            ${subProfileRow(0)}
-          </div>
 
-          <div class="divider"></div>
-          <div class="flex-between" style="margin-bottom:6px">
-            <div>
-              <strong style="font-size:0.88rem">Routine Rules</strong>
-              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px">
-                A routine rule tells the team <em>what to do</em>, <em>how often</em>, and <em>where to find the content</em>. Each rule becomes a recurring task the team can check off.
+          <!-- Trigger selection integrated directly -->
+          <div style="border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;display:flex;flex-direction:column;gap:14px;background:var(--bg-elevated)">
+            <!-- Run type toggle (3 options) -->
+            <div class="form-group">
+              <label class="form-label">How does this routine get triggered?</label>
+              <div class="rule-type-toggle rule-type-toggle-3" id="rr-toggle-0">
+                <button type="button" class="rule-type-btn active" id="rr-btn-scheduled-0"
+                  onclick="Components.selectRuleType(0,'INTERVAL_SCHEDULED')">
+                  <span class="rule-type-icon">📅</span>
+                  <span class="rule-type-label">Runs on a schedule</span>
+                  <span class="rule-type-sub">Auto-runs on set days</span>
+                </button>
+                <button type="button" class="rule-type-btn" id="rr-btn-social-0"
+                  onclick="Components.selectRuleType(0,'SOCIAL_MONITOR')">
+                  <span class="rule-type-icon">📱</span>
+                  <span class="rule-type-label">Watches social media</span>
+                  <span class="rule-type-sub">Triggers when they post</span>
+                </button>
+                <button type="button" class="rule-type-btn" id="rr-btn-event-0"
+                  onclick="Components.selectRuleType(0,'EVENT_DRIVEN')">
+                  <span class="rule-type-icon">⚡</span>
+                  <span class="rule-type-label">Manual trigger only</span>
+                  <span class="rule-type-sub">You kick it off yourself</span>
+                </button>
+              </div>
+              <input type="hidden" id="rr-type-0" value="INTERVAL_SCHEDULED" />
+            </div>
+
+            <!-- Frequency (shown for INTERVAL_SCHEDULED) -->
+            <div class="form-group" id="rr-freq-grp-0">
+              <label class="form-label">How often should this run?</label>
+              <select class="form-select" id="rr-freq-0" onchange="Components.onFreqChange(0)">
+                ${presetOptions}
+              </select>
+              <div id="rr-freq-hint-0" style="margin-top:5px;font-size:0.73rem;color:var(--text-muted);display:none"></div>
+            </div>
+
+            <!-- Social media panel (shown for SOCIAL_MONITOR) -->
+            <div id="rr-social-grp-0" style="display:none;flex-direction:column;gap:12px">
+              <div class="form-group">
+                <label class="form-label">Which platform do they post on?</label>
+                <div class="platform-picker" id="rr-platform-picker-0">
+                  ${platformBtns}
+                </div>
+                <input type="hidden" id="rr-platform-0" value="" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">What to watch <span style="color:var(--text-muted);font-weight:400">(Instagram only)</span></label>
+                <div style="display:flex;gap:8px" id="rr-watch-type-grp-0">
+                  <label class="watch-type-option">
+                    <input type="radio" name="rr-watch-0" id="rr-watch-feed-0" value="Feed" checked /> Feed posts
+                  </label>
+                  <label class="watch-type-option">
+                    <input type="radio" name="rr-watch-0" id="rr-watch-stories-0" value="Stories" /> Stories
+                  </label>
+                  <label class="watch-type-option">
+                    <input type="radio" name="rr-watch-0" id="rr-watch-both-0" value="Feed & Stories" /> Both
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Their handle or profile URL</label>
+                <input class="form-input" placeholder="e.g. @clienthandle or https://instagram.com/clienthandle" id="rr-social-handle-0" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">How often should we check for new posts?</label>
+                <select class="form-select" id="rr-social-freq-0" onchange="Components.onSocialFreqChange(0)">
+                  ${presetOptions}
+                </select>
+                <div id="rr-social-freq-hint-0" style="margin-top:5px;font-size:0.73rem;color:var(--text-muted);display:none"></div>
               </div>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="Components.addRoutineRuleRow()" style="flex-shrink:0;margin-left:12px">+ Add Rule</button>
-          </div>
-          <div id="routine-rules-list" style="display:flex;flex-direction:column;gap:10px">
-            <div id="rr-empty-hint" style="text-align:center;padding:18px 12px;border:1px dashed var(--border);border-radius:var(--radius-md);color:var(--text-muted);font-size:0.8rem">
-              No rules yet — click <strong>+ Add Rule</strong> to define how often the team should run this service.
+
+            <!-- Source link (shown for INTERVAL_SCHEDULED / EVENT_DRIVEN) -->
+            <div class="form-group" id="rr-src-grp-0">
+              <label class="form-label">Client page or content link <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+              <input class="form-input" placeholder="Paste the link the team needs to work from (e.g. Spotify page, menu page…)" id="rr-src-0" />
+            </div>
+
+            <!-- Step builder -->
+            <div class="form-group">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <label class="form-label" style="margin:0">Steps the team needs to complete</label>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="Components.addStep(0)">+ Add Step</button>
+              </div>
+              <div id="rr-steps-0" style="display:flex;flex-direction:column;gap:6px">
+                <div id="rr-step-0-0" style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:0.75rem;color:var(--text-muted);width:20px;text-align:right;flex-shrink:0">1.</span>
+                  <input class="form-input" placeholder="e.g. Open the Spotify page and update bio" id="rr-step-text-0-0" style="flex:1" />
+                  <button type="button" class="btn btn-danger btn-icon btn-sm" onclick="Components.removeStep(0,0)" title="Remove step">✕</button>
+                </div>
+              </div>
             </div>
           </div>
+
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="Components.closeModal('create-sr-modal')">Cancel</button>
