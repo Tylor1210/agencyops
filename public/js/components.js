@@ -178,20 +178,35 @@ function renderAddAssetModal(agencyId, agencyName) {
 
 // ── Service Request Card (formerly Bundle Card) ───────────────────────────────
 
-function renderServiceRequestCard(sr, role) {
+function renderServiceRequestCard(sr, role, creators) {
   const profileCount = (sr.sub_profiles || []).length;
   const ruleCount    = (sr.routine_rules || []).length;
+  const _creators    = creators || window._cachedCreators || [];
+
+  const scheduleHtml = sr.preferred_execution_day
+    ? `<span class="meta-item">📅 ${sr.preferred_execution_day} ${fmtTime(sr.preferred_execution_time)}</span>`
+    : '';
+
+  // ── Quick-assign inline dropdown (only for ADMIN + UNASSIGNED) ──
+  const quickAssignHtml = (role === 'ADMIN' && sr.status === 'UNASSIGNED' && _creators.length > 0) ? `
+    <div class="quick-assign-row" onclick="event.stopPropagation()">
+      <span style="font-size:0.75rem;color:var(--accent-light);font-weight:600">⚡ Quick Assign</span>
+      <select class="quick-assign-select" id="qa-select-${sr.id}"
+        onchange="event.stopPropagation();App.quickAssignCreator(${sr.id},this.value)">
+        <option value="">— Pick a creator —</option>
+        ${_creators.filter(c => c.role === 'CREATOR').map(c =>
+          `<option value="${c.id}">${escHtml(c.name)} (${c.active_bundles || 0} active)</option>`
+        ).join('')}
+      </select>
+    </div>
+  ` : '';
 
   const creatorHtml = sr.assigned_creator_id
     ? `<div class="assigned-creator-row">
          <div class="mini-avatar" style="background:${avatarColor(sr.creator_name)}">${initials(sr.creator_name)}</div>
          <span class="assigned-creator-name">${escHtml(sr.creator_name)}</span>
        </div>`
-    : `<span class="text-muted">Unassigned</span>`;
-
-  const scheduleHtml = sr.preferred_execution_day
-    ? `<span class="meta-item">📅 ${sr.preferred_execution_day} ${fmtTime(sr.preferred_execution_time)}</span>`
-    : '';
+    : quickAssignHtml || `<span class="text-muted">Unassigned</span>`;
 
   const adminControls = role === 'ADMIN' ? `
     <div style="display:flex;gap:6px;margin-top:12px">

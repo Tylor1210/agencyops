@@ -118,6 +118,8 @@ const App = (() => {
       API.getUsers(),
       API.getAgencies(),
     ]);
+    // Cache creators globally so service request cards can render quick-assign
+    window._cachedCreators = state.users;
     updateBadges();
   }
 
@@ -802,6 +804,18 @@ const App = (() => {
     }
   }
 
+  // ── Quick-Assign Creator (inline one-click assign) ─────────
+  async function quickAssignCreator(srId, creatorId) {
+    if (!creatorId) return;
+    try {
+      const result = await API.hotSwapServiceRequest(srId, creatorId);
+      toast(`⚡ Assigned → ${result.routed_to.name}`, 'success');
+      handleRoute();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
   // ── Hot-Swap Routing ───────────────────────────────────────
   async function openHotSwap(srId, serviceName) {
     state.pendingHotSwapBundleId = srId;
@@ -1072,6 +1086,7 @@ const App = (() => {
   return {
     init, navigate, switchRole, handleRoute,
     updateTaskStatus, setServiceRequestStatus, deleteServiceRequest, deleteUser, generateAllTasks,
+    quickAssignCreator,
     openHotSwap, confirmHotSwap,
     openTrigger, confirmTrigger,
     openCreateServiceRequest, submitCreateServiceRequest,

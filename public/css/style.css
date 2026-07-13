@@ -415,6 +415,32 @@ body {
   color: var(--text-primary);
 }
 
+/* Quick-assign inline dropdown */
+.quick-assign-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.quick-assign-select {
+  flex: 1;
+  background: var(--bg-base);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  padding: 5px 10px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.quick-assign-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.quick-assign-select option { background: var(--bg-elevated); }
+
 /* Asset Library */
 .asset-card {
   display: flex;
