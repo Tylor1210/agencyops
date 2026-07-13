@@ -498,6 +498,17 @@ body {
 }
 .quick-assign-select option { background: var(--bg-elevated); }
 
+/* Unassigned claim card hover animations */
+.unassigned-claim-card {
+  transition: all var(--transition);
+}
+.unassigned-claim-card:hover {
+  border-color: var(--border-accent) !important;
+  box-shadow: 0 4px 12px rgba(124, 92, 252, 0.12);
+  transform: translateY(-1px);
+}
+
+
 /* Reassign panel (detail page) */
 .reassign-panel {
   display: flex;

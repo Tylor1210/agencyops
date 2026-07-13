@@ -211,6 +211,7 @@ const App = (() => {
       const myRequests = state.bundles.filter(r => r.assigned_creator_id === me?.id && r.status === 'ASSIGNED');
       const myTasks = state.tasks.filter(t => t.assigned_to_creator_id === me?.id);
       const activeTasks = myTasks.filter(t => t.status === 'PENDING' || t.status === 'IN_PROGRESS');
+      const unassignedRequests = state.bundles.filter(r => r.status === 'UNASSIGNED');
 
       vc.innerHTML = `
         <div class="page-header">
@@ -228,6 +229,26 @@ const App = (() => {
               </div>
               <div class="card-body" style="padding: 16px">
                 ${Components.renderTimeBlockPlanner(myRequests, myTasks)}
+              </div>
+            </div>
+
+            <div class="card" style="margin-top: 24px">
+              <div class="card-header">
+                <h2>🙋 Unassigned Support Service Requests (${unassignedRequests.length})</h2>
+              </div>
+              <div class="card-body" style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+                ${unassignedRequests.length
+                  ? unassignedRequests.map(r => `
+                    <div class="unassigned-claim-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-md); gap:12px;">
+                      <div>
+                        <strong style="font-size:0.9rem; color:var(--text-primary);">${escHtml(r.service_name)}</strong>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">🏢 ${escHtml(r.agency_name)}</div>
+                        ${r.preferred_execution_day ? `<div style="font-size:0.72rem; color:var(--accent-light); margin-top:4px;">📅 ${r.preferred_execution_day} at ${Components.fmtTime(r.preferred_execution_time)}</div>` : ''}
+                      </div>
+                      <button class="btn btn-primary btn-sm" onclick="App.claimServiceRequest(${r.id})">🙋 Claim Request</button>
+                    </div>
+                  `).join('')
+                  : '<p class="text-muted" style="text-align:center; padding:12px; font-size:0.8rem">No unassigned service requests available to claim.</p>'}
               </div>
             </div>
           </div>
@@ -857,6 +878,18 @@ const App = (() => {
   // ── ACTIONS ───────────────────────────────────────────────────
   // ─────────────────────────────────────────────────────────────
 
+  async function claimServiceRequest(srId) {
+    const me = state.users.find(u => u.email === state.currentUser.email);
+    if (!me) { toast('Error: Creator not found', 'error'); return; }
+    try {
+      await API.hotSwapServiceRequest(srId, me.id);
+      toast('🎉 Service Request claimed successfully!', 'success');
+      handleRoute();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
   async function updateTaskStatus(taskId, newStatus) {
     try {
       await API.updateTask(taskId, { status: newStatus });
@@ -1198,7 +1231,7 @@ const App = (() => {
   return {
     init, navigate, switchRole, handleRoute,
     updateTaskStatus, setServiceRequestStatus, deleteServiceRequest, deleteUser, generateAllTasks,
-    quickAssignCreator, toggleUserSwitcher, selectUser,
+    quickAssignCreator, toggleUserSwitcher, selectUser, claimServiceRequest,
     openHotSwap, confirmHotSwap,
     openTrigger, confirmTrigger,
     openCreateServiceRequest, submitCreateServiceRequest,
