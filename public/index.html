@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agency Ops: Support Pipeline Platform</title>
+  <meta name="description" content="Agency Ops is an internal support logistics platform that streamlines, pipelines, and routes repetitive support workflows for multi-tenant agency assets." />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+</head>
+<body>
+
+  <!-- ── Left Sidebar ──────────────────────────────────────── -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">
+        <strong>Agency Ops</strong>
+        <small>Support Pipeline</small>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Navigation</div>
+      <a class="nav-link active" data-view="dashboard" id="nav-dashboard" href="#dashboard">
+        🏠 Dashboard
+      </a>
+      <a class="nav-link" data-view="agencies" id="nav-agencies" href="#agencies">
+        🏢 Agencies
+      </a>
+      <a class="nav-link" data-view="tasks" id="nav-tasks" href="#tasks">
+        ✅ Task Queue
+        <span class="nav-badge" id="badge-tasks" style="display:none">0</span>
+      </a>
+      <a class="nav-link" data-view="assets" id="nav-assets" href="#assets">
+        🔗 Assets
+      </a>
+    </div>
+
+    <div class="sidebar-section admin-only">
+      <div class="sidebar-section-label">Admin</div>
+      <a class="nav-link" data-view="capacity" id="nav-capacity" href="#capacity">
+        📊 Capacity
+      </a>
+      <a class="nav-link" data-view="creators" id="nav-creators" href="#creators">
+        👥 Creators
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="current-user-card">
+        <div class="user-avatar" id="sidebar-user-avatar">JR</div>
+        <div class="user-info">
+          <strong id="sidebar-user-name">Jordan Reyes</strong>
+          <small id="sidebar-user-role">Admin</small>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Header ───────────────────────────────────────────── -->
+  <header id="header">
+    <div id="header-title">
+      Agency Ops: Support Pipeline
+    </div>
+
+    <div class="header-controls">
+      <div id="role-switcher">
+        <button class="role-btn active" id="role-admin" onclick="App.switchRole('ADMIN')">Admin</button>
+        <button class="role-btn" id="role-creator" onclick="App.switchRole('CREATOR')">Creator</button>
+      </div>
+
+      <div id="notif-btn" title="Unassigned Service Requests">
+        🔔
+        <span id="notif-badge">0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main View Container ────────────────────────────────── -->
+  <main id="main">
+    <div id="view-container">
+      <div class="empty-state" style="height:60vh">
+        <div class="empty-icon">⚡</div>
+        <p>Loading Agency Ops…</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Toast Container ──────────────────────────────────── -->
+  <div id="toast-container"></div>
+
+  <!-- ── Modal Mount Point ────────────────────────────────── -->
+  <div id="modal-mount"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/components.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

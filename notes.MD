@@ -1,0 +1,4 @@
+What we actually built is a form that records monitoring intent, not actual polling code. When saved, it creates a routine rule with pipeline_type = SOCIAL_MONITOR and generates a task that tells the team "go manually check this client's Instagram feed today." A human still does the check — the app just schedules the reminder and tracks completion.
+
+
+That's actually realistic for your use case right now — your team is the "sensor," not an API. The social monitor feature as-is is a structured checklist trigger, not an automated scraper. When your company's API connections are available later, you wire a Cloudflare Cron trigger to call them and auto-generate tasks. The data model already supports it.
