@@ -214,7 +214,7 @@ const App = (() => {
             <p>Platform metrics and support routines overview</p>
           </div>
           <div style="display:flex;gap:10px">
-            <button class="btn btn-secondary" onclick="App.openSchedulerCapacity()">📊 Capacity Match</button>
+            <button class="btn btn-secondary" onclick="App.openCreateAgency()">🏢 New Agency</button>
             <button class="btn btn-primary" onclick="App.openCreateServiceRequest()">+ Service Request</button>
           </div>
         </div>
