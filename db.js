@@ -54,7 +54,11 @@ function init() {
     process.exit(1);
   }
 
-  const dbPath = path.join(__dirname, 'agencyops.db');
+  const dbPath = process.env.DB_PATH || path.join(__dirname, 'agencyops.db');
+  const dbDir = path.dirname(dbPath);
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
   sqliteDb = new DatabaseSync(dbPath);
   sqliteDb.exec('PRAGMA journal_mode = WAL');
   sqliteDb.exec('PRAGMA foreign_keys = ON');
