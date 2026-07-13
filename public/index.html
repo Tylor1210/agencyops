@@ -47,14 +47,18 @@
       </a>
     </div>
 
-    <div class="sidebar-footer">
-      <div class="current-user-card">
-        <div class="user-avatar" id="sidebar-user-avatar">JR</div>
-        <div class="user-info">
-          <strong id="sidebar-user-name">Jordan Reyes</strong>
-          <small id="sidebar-user-role">Admin</small>
+    <div class="sidebar-footer" style="position: relative;">
+      <div class="current-user-card" id="current-user-card" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px;" onclick="App.toggleUserSwitcher(event)">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+          <div class="user-avatar" id="sidebar-user-avatar">JR</div>
+          <div class="user-info">
+            <strong id="sidebar-user-name">Jordan Reyes</strong>
+            <small id="sidebar-user-role">Admin</small>
+          </div>
         </div>
+        <span style="font-size: 0.8rem; color: var(--text-secondary); margin-left: auto; flex-shrink: 0; user-select: none;">↕</span>
       </div>
+      <div class="user-switcher-popover" id="user-switcher-popover"></div>
     </div>
   </aside>
 

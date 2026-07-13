@@ -61,17 +61,52 @@ const App = (() => {
     }
   }
 
-  // ── Role Switcher ──────────────────────────────────────────
-  function switchRole(role) {
-    state.role = role;
-    document.getElementById('role-admin')?.classList.toggle('active', role === 'ADMIN');
-    document.getElementById('role-creator')?.classList.toggle('active', role === 'CREATOR');
-
-    if (role === 'ADMIN') {
-      state.currentUser = { name: 'Jordan Reyes', email: 'jordan@agencyops.io', role: 'ADMIN', initials: 'JR' };
-    } else {
-      state.currentUser = { name: 'Mia Chen', email: 'mia@agencyops.io', role: 'CREATOR', initials: 'MC' };
+  // ── User / Role Switcher ────────────────────────────────────
+  function toggleUserSwitcher(event) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById('user-switcher-popover');
+    if (!popover) return;
+    
+    const isActive = popover.classList.contains('active');
+    if (isActive) {
+      popover.classList.remove('active');
+      return;
     }
+
+    // Render switcher items
+    popover.innerHTML = state.users.map(u => {
+      const isSelected = state.currentUser.email === u.email;
+      const initials = Components.initials(u.name);
+      return `
+        <div class="user-switcher-item ${isSelected ? 'selected' : ''}" onclick="App.selectUser(${u.id})">
+          <div class="mini-avatar" style="background:${Components.avatarColor(u.name)}; width:28px; height:28px; font-size:0.7rem; flex-shrink:0;">${initials}</div>
+          <div class="user-switcher-item-info">
+            <span class="user-switcher-item-name">${escHtml(u.name)}</span>
+            <span class="user-switcher-item-role">${escHtml(u.role)}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    popover.classList.add('active');
+  }
+
+  function selectUser(userId) {
+    const user = state.users.find(u => u.id === userId);
+    if (!user) return;
+    
+    state.currentUser = { 
+      name: user.name, 
+      email: user.email, 
+      role: user.role, 
+      initials: Components.initials(user.name),
+      id: user.id
+    };
+    state.role = user.role;
+    
+    // Update role button active state in header
+    document.getElementById('role-admin')?.classList.toggle('active', user.role === 'ADMIN');
+    document.getElementById('role-creator')?.classList.toggle('active', user.role === 'CREATOR');
 
     // Update sidebar profile card details
     const avatar = document.getElementById('sidebar-user-avatar');
@@ -86,11 +121,47 @@ const App = (() => {
 
     // Show/hide admin links
     document.querySelectorAll('.admin-only').forEach(el => {
-      el.style.display = role === 'ADMIN' ? '' : 'none';
+      el.style.display = user.role === 'ADMIN' ? '' : 'none';
     });
+
+    // Close switcher
+    document.getElementById('user-switcher-popover')?.classList.remove('active');
 
     // Re-route current view
     handleRoute();
+  }
+
+  function switchRole(role) {
+    const matchedUser = state.users.find(u => u.role === role);
+    if (matchedUser) {
+      selectUser(matchedUser.id);
+    } else {
+      state.role = role;
+      document.getElementById('role-admin')?.classList.toggle('active', role === 'ADMIN');
+      document.getElementById('role-creator')?.classList.toggle('active', role === 'CREATOR');
+
+      if (role === 'ADMIN') {
+        state.currentUser = { name: 'Jordan Reyes', email: 'jordan@agencyops.io', role: 'ADMIN', initials: 'JR' };
+      } else {
+        state.currentUser = { name: 'Mia Chen', email: 'mia@agencyops.io', role: 'CREATOR', initials: 'MC' };
+      }
+
+      const avatar = document.getElementById('sidebar-user-avatar');
+      const nameLabel = document.getElementById('sidebar-user-name');
+      const roleLabel = document.getElementById('sidebar-user-role');
+      if (avatar) {
+        avatar.textContent = state.currentUser.initials;
+        avatar.style.background = Components.avatarColor(state.currentUser.name);
+      }
+      if (nameLabel) nameLabel.textContent = state.currentUser.name;
+      if (roleLabel) roleLabel.textContent = state.currentUser.role;
+
+      document.querySelectorAll('.admin-only').forEach(el => {
+        el.style.display = role === 'ADMIN' ? '' : 'none';
+      });
+
+      handleRoute();
+    }
   }
 
   // ── Update Sidebar Badges ──────────────────────────────────
@@ -1114,13 +1185,20 @@ const App = (() => {
   // ── Init ───────────────────────────────────────────────────
   function init() {
     window.addEventListener('hashchange', handleRoute);
+    document.addEventListener('click', (e) => {
+      const popover = document.getElementById('user-switcher-popover');
+      const card = document.getElementById('current-user-card');
+      if (popover && card && !card.contains(e.target) && !popover.contains(e.target)) {
+        popover.classList.remove('active');
+      }
+    });
     switchRole('ADMIN'); // Default to Admin simulator view on load
   }
 
   return {
     init, navigate, switchRole, handleRoute,
     updateTaskStatus, setServiceRequestStatus, deleteServiceRequest, deleteUser, generateAllTasks,
-    quickAssignCreator,
+    quickAssignCreator, toggleUserSwitcher, selectUser,
     openHotSwap, confirmHotSwap,
     openTrigger, confirmTrigger,
     openCreateServiceRequest, submitCreateServiceRequest,

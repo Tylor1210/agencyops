@@ -219,6 +219,63 @@ body {
   padding: 12px;
   border-top: 1px solid var(--border);
 }
+
+/* User Switcher Popover styles */
+.user-switcher-popover {
+  position: absolute;
+  bottom: calc(100% - 4px);
+  left: 12px;
+  right: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), 0 0 16px var(--accent-glow);
+  display: none;
+  flex-direction: column;
+  z-index: 500;
+  overflow: hidden;
+  animation: slideUp 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.user-switcher-popover.active {
+  display: flex;
+}
+.user-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all var(--transition);
+  border-bottom: 1px solid var(--border);
+}
+.user-switcher-item:last-child {
+  border-bottom: none;
+}
+.user-switcher-item:hover {
+  background: var(--accent-subtle);
+}
+.user-switcher-item.selected {
+  background: rgba(124, 92, 252, 0.18);
+  border-left: 3px solid var(--accent-light);
+  padding-left: 11px;
+}
+.user-switcher-item-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.user-switcher-item-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.user-switcher-item-role {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .current-user-card {
   display: flex;
   align-items: center;
