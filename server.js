@@ -71,6 +71,46 @@ async function generateTasksForRequest(srId, creatorId) {
   return created;
 }
 
+async function scheduleNextTaskCycle(taskId) {
+  try {
+    // 1. Get current task details
+    const { rows: [task] } = await db.query('SELECT * FROM agency_tasks WHERE id=$1', [taskId]);
+    if (!task) return;
+
+    // 2. Get service request
+    const { rows: [sr] } = await db.query('SELECT * FROM service_requests WHERE id=$1', [task.service_request_id]);
+    if (!sr || sr.status !== 'ASSIGNED' || !sr.assigned_creator_id) return;
+
+    // 3. Get routine rules
+    const { rows: rules } = await db.query('SELECT * FROM routine_rules WHERE service_request_id=$1', [sr.id]);
+    
+    for (const rule of rules) {
+      if (rule.pipeline_type === 'INTERVAL_SCHEDULED' && rule.cron_interval_expression) {
+        // Calculate the next execution time starting from now
+        const nextTs = parseCronToNextTimestamp(rule.cron_interval_expression);
+
+        // Check if there is already a PENDING task for this service request and exact timestamp to avoid duplicates
+        const { rows: existing } = await db.query(
+          `SELECT * FROM agency_tasks 
+           WHERE service_request_id=$1 AND status='PENDING' AND scheduled_for_timestamp=$2`,
+          [sr.id, nextTs]
+        );
+
+        if (existing.length === 0) {
+          await db.query(
+            `INSERT INTO agency_tasks (service_request_id, assigned_to_creator_id, status, scheduled_for_timestamp)
+             VALUES ($1, $2, 'PENDING', $3)`,
+            [sr.id, sr.assigned_creator_id, nextTs]
+          );
+          console.log(`⏰ Scheduled next cycle task for SR ${sr.id} at ${nextTs}`);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Failed to schedule next task cycle:', e.message);
+  }
+}
+
 // ─── USERS ────────────────────────────────────────────────────────────────────
 
 // GET /api/users — list creators with workload stats
@@ -495,6 +535,7 @@ app.put('/api/tasks/:id', async (req, res) => {
         `UPDATE agency_tasks SET status='COMPLETED', completed_at=$1 WHERE id=$2`,
         [now, req.params.id]
       );
+      await scheduleNextTaskCycle(req.params.id);
     } else {
       await db.query(`UPDATE agency_tasks SET status=$1 WHERE id=$2`, [status, req.params.id]);
     }
