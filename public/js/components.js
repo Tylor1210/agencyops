@@ -379,53 +379,94 @@ function toggleChecklistItem(taskId, itemId) {
 
 // ── Time Block Planner (Weekly Schedule Dashboard) ───────────────────────────
 
-function renderTimeBlockPlanner(myRequests, myTasks) {
-  const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+// ── Plumber-Style Dispatch Planner (Creator Route Planner) ───────────────────
+
+function renderRouteJobCard(r, myTasks, isToday) {
+  const currentTask = myTasks.find(t => t.service_request_id === r.id && t.status !== 'COMPLETED');
+  const status = currentTask ? currentTask.status : (r.status === 'PAUSED' ? 'PAUSED' : 'PENDING');
   
-  const timelineHtml = days.map(day => {
-    const dayRequests = myRequests.filter(r => (r.preferred_execution_day || '').toUpperCase() === day);
-    if (dayRequests.length === 0) return '';
-    
-    return `
-      <div class="planner-day-section">
-        <div class="planner-day-header">
-          <span>📅 ${day}</span>
-          <small>${dayRequests.length} Scheduled Slot(s)</small>
-        </div>
-        <div class="planner-slots">
-          ${dayRequests.map(r => {
-            const currentTask = myTasks.find(t => t.service_request_id === r.id && t.status !== 'COMPLETED');
-            const status = currentTask ? currentTask.status : 'NO_ACTIVE_TASK';
-            const badgeHtml = currentTask ? statusBadge(currentTask.status) : `<span class="badge badge-paused">No active task</span>`;
-            const taskActionHtml = currentTask 
-              ? `onclick="App.navigate('workspace/${currentTask.id}')"` 
-              : `onclick="App.navigate('agencies/${r.agency_id}')"`;
-            
-            return `
-              <div class="planner-slot-card ${status.toLowerCase()}" ${taskActionHtml}>
-                <div class="planner-slot-time">⏰ ${fmtTime(r.preferred_execution_time) || 'Flexible'}</div>
-                <div class="planner-slot-name">${escHtml(r.agency_name)}</div>
-                <div style="font-size:0.75rem;color:var(--text-secondary)">${escHtml(srLabelFix(r.service_name))}</div>
-                <div class="planner-slot-meta">
-                  ${badgeHtml}
-                  <small style="color:var(--accent-light)">View Workspace →</small>
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-    `;
-  }).join('');
+  let statusBadgeHtml = '';
+  if (r.status === 'PAUSED') {
+    statusBadgeHtml = `<span class="badge badge-paused">Paused</span>`;
+  } else if (currentTask) {
+    statusBadgeHtml = statusBadge(currentTask.status);
+  } else {
+    statusBadgeHtml = `<span class="badge badge-pending">Scheduled</span>`;
+  }
+
+  const timeLabel = r.preferred_execution_time ? fmtTime(r.preferred_execution_time) : 'Flexible';
+  const scheduleDesc = r.preferred_execution_day 
+    ? `📅 Runs every ${r.preferred_execution_day} at ${timeLabel}`
+    : '⚡ Event-driven / Manual Trigger';
+
+  const actionBtn = currentTask 
+    ? `<button class="btn btn-primary btn-sm" onclick="App.navigate('workspace/${currentTask.id}')">Start Dispatch →</button>`
+    : `<button class="btn btn-secondary btn-sm" onclick="App.navigate('service_requests/${r.id}')">View Details</button>`;
 
   return `
-    <div class="planner-timeline">
-      ${timelineHtml || `
-        <div class="empty-state">
-          <div class="empty-icon">📅</div>
-          <p>No scheduled service requests assigned to you this week.</p>
+    <div class="dispatch-card ${status.toLowerCase()}${isToday ? ' highlight-today' : ''}">
+      <div class="dispatch-card-left">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <strong class="dispatch-client-name">🏢 ${escHtml(r.agency_name)}</strong>
+          ${statusBadgeHtml}
         </div>
-      `}
+        <div class="dispatch-job-name">${escHtml(r.service_name)}</div>
+        <div class="dispatch-schedule-meta">${scheduleDesc}</div>
+      </div>
+      <div class="dispatch-card-right">
+        ${actionBtn}
+      </div>
+    </div>
+  `;
+}
+
+function renderTimeBlockPlanner(myRequests, myTasks) {
+  const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+  
+  const todayJobs = myRequests.filter(r => (r.preferred_execution_day || '').toUpperCase() === todayName && r.status === 'ASSIGNED');
+  const upcomingJobs = myRequests.filter(r => (r.preferred_execution_day || '').toUpperCase() !== todayName && r.preferred_execution_day && r.status === 'ASSIGNED');
+  const standbyJobs = myRequests.filter(r => !r.preferred_execution_day && r.status === 'ASSIGNED');
+
+  return `
+    <div class="dispatch-planner" style="display:flex; flex-direction:column; gap:18px">
+      <!-- 🚨 Today's Dispatch Route -->
+      <div class="dispatch-section today">
+        <div class="dispatch-section-header">
+          <span class="dispatch-badge today">TODAY</span>
+          <h3>Today's Service Dispatch Route</h3>
+          <span class="dispatch-count">${todayJobs.length} scheduled</span>
+        </div>
+        <div class="dispatch-list">
+          ${todayJobs.map(j => renderRouteJobCard(j, myTasks, true)).join('') 
+            || '<div class="dispatch-empty">🌴 No service routes scheduled for today.</div>'}
+        </div>
+      </div>
+
+      <!-- 📅 Weekly Route -->
+      <div class="dispatch-section upcoming">
+        <div class="dispatch-section-header">
+          <span class="dispatch-badge upcoming">WEEKLY</span>
+          <h3>Upcoming Service Routes</h3>
+          <span class="dispatch-count">${upcomingJobs.length} clients</span>
+        </div>
+        <div class="dispatch-list">
+          ${upcomingJobs.map(j => renderRouteJobCard(j, myTasks, false)).join('') 
+            || '<div class="dispatch-empty">No upcoming routes scheduled.</div>'}
+        </div>
+      </div>
+
+      <!-- ⚡ Standby Queue -->
+      <div class="dispatch-section standby">
+        <div class="dispatch-section-header">
+          <span class="dispatch-badge standby">STANDBY</span>
+          <h3>Manual / Event-Driven Queue</h3>
+          <span class="dispatch-count">${standbyJobs.length} active</span>
+        </div>
+        <div class="dispatch-list">
+          ${standbyJobs.map(j => renderRouteJobCard(j, myTasks, false)).join('') 
+            || '<div class="dispatch-empty">No standby queues active.</div>'}
+        </div>
+      </div>
     </div>
   `;
 }

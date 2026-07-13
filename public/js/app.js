@@ -505,7 +505,7 @@ const App = (() => {
           <p>
             ${Components.statusBadge(sr.status)} 
             &bull; Agency: <strong>${escHtml(sr.agency_name)}</strong>
-            ${sr.preferred_execution_day ? ` &bull; 📅 ${sr.preferred_execution_day} at ${Components.fmtTime(sr.preferred_execution_time)}` : ''}
+            ${sr.preferred_execution_day ? ` &bull; 📅 Recurring: <strong>every ${sr.preferred_execution_day} at ${Components.fmtTime(sr.preferred_execution_time)}</strong>` : ' &bull; ⚡ Trigger: <strong>Event-driven / Manual</strong>'}
           </p>
         </div>
         ${state.role === 'ADMIN' ? `
@@ -618,7 +618,11 @@ const App = (() => {
         <div>
           <button class="btn btn-secondary btn-sm" style="margin-bottom:10px" onclick="history.back()">← Back</button>
           <h1>${escHtml(task.agency_name)}: ${escHtml(task.service_name)}</h1>
-          <p>Task Execution #${task.id} &bull; Status: ${Components.statusBadge(task.status)} &bull; Scheduled: ${Components.fmtDateTime(task.scheduled_for_timestamp)}</p>
+          <p>
+            Task Execution #${task.id} &bull; Status: ${Components.statusBadge(task.status)} 
+            &bull; Scheduled: <strong>${Components.fmtDateTime(task.scheduled_for_timestamp)}</strong>
+            ${task.preferred_execution_day ? ` &bull; 📅 Recurring: <strong>every ${task.preferred_execution_day} at ${Components.fmtTime(task.preferred_execution_time)}</strong>` : ' &bull; ⚡ Trigger: <strong>Event-driven / Manual</strong>'}
+          </p>
         </div>
         <div style="display:flex;gap:8px">
           ${task.status === 'PENDING'

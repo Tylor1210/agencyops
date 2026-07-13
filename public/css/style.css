@@ -548,6 +548,109 @@ body {
   justify-content: flex-end;
 }
 
+/* Plumber-style dispatch route planner */
+.dispatch-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.dispatch-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+.dispatch-section-header h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.dispatch-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid transparent;
+}
+.dispatch-badge.today { background: var(--danger-subtle); color: var(--danger); border-color: rgba(239, 68, 68, 0.2); }
+.dispatch-badge.upcoming { background: var(--info-subtle); color: var(--info); border-color: rgba(56, 189, 248, 0.2); }
+.dispatch-badge.standby { background: rgba(100, 100, 130, 0.15); color: var(--text-secondary); border-color: var(--border); }
+
+.dispatch-count {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.dispatch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dispatch-empty {
+  text-align: center;
+  padding: 16px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+
+.dispatch-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition);
+}
+.dispatch-card:hover {
+  border-color: var(--border-accent);
+  transform: translateX(2px);
+}
+.dispatch-card.highlight-today {
+  border-left: 3px solid var(--accent);
+}
+.dispatch-card.in_progress {
+  border-left: 3px solid var(--warning);
+}
+.dispatch-card.completed {
+  opacity: 0.65;
+}
+.dispatch-card-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.dispatch-client-name {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+.dispatch-job-name {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.dispatch-schedule-meta {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+.dispatch-card-right {
+  margin-left: 14px;
+  flex-shrink: 0;
+}
+
 /* Asset Library */
 .asset-card {
   display: flex;

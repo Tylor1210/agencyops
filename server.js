@@ -491,7 +491,7 @@ app.get('/api/tasks', async (req, res) => {
 app.get('/api/tasks/:id', async (req, res) => {
   try {
     const { rows: [task] } = await db.query(`
-      SELECT t.*, a.id as agency_id, a.name as agency_name, sr.service_name, sr.preferred_execution_day, u.name as creator_name
+      SELECT t.*, a.id as agency_id, a.name as agency_name, sr.service_name, sr.preferred_execution_day, sr.preferred_execution_time, u.name as creator_name
       FROM agency_tasks t
       JOIN service_requests sr ON t.service_request_id = sr.id
       JOIN agencies a ON sr.agency_id = a.id
